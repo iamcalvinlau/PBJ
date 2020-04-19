@@ -513,8 +513,7 @@ function InjectionParticles_fromTheLeft(
     for ip in 1:length(ip_injection)
         injected_particles[ip]=possible_particles[ip_injection[ip]]
     end
-    possible_particles=injected_particles
-    return possible_particles
+    return injected_particles
 end
         
 function ParticleInjectionFromLeft_Init(
@@ -532,6 +531,15 @@ function ParticleInjectionFromLeft_Init(
         vz_thermal_speed=vz_thermal_speed,
         time_step=time_step
     );      
+    if(length(particle)==0)
+        ParticleRandomInit(
+            grid.x[2]-grid.x[1],
+            grid.y[2]-grid.y[1],
+            grid.z[2]-grid.z[1],
+            vx_thermal_speed,vy_thermal_speed,vz_thermal_speed,
+            time_step
+        )
+    end
     particle_array=Particle_Array(
         length(particle),mass,charge,0.0,
         particle_shape_x,particle_shape_y,particle_shape_z,
@@ -547,7 +555,7 @@ function ParticleInjectionFromLeft_Continue!(
         vy_thermal_speed=0.0,
         vz_thermal_speed=0.0,
         time_step=0.0,
-        buffer_multiplier=5
+        buffer_multiplier=10
     )
     injected_particles=InjectionParticles_fromTheLeft(
         grid,density,
