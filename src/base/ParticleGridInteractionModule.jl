@@ -156,6 +156,34 @@ function ApplyAbsorptionParticleBoundary_Right!(
     end
 end
 
+function ApplyAbsorptionParticleBoundary_LeftRight!(
+        particle_array::ParticlesModule.Particle_Array,
+        grid_array::GridModule.Grid_Array
+    )
+    ip_absorbed = ElasticArray{Int}(undef, 1, 0)
+    for ip in 1:particle_array.number_particles
+        if(particle_array.particle[ip].x>=maximum(grid_array.x))
+            append!(ip_absorbed,[ip])
+        elseif(particle_array.particle[ip].x<minimum(grid_array.x))
+            append!(ip_absorbed,[ip])
+        end
+    end
+    N_pre_absorption = particle_array.number_particles
+    N_post_absorption = N_pre_absorption-length(ip_absorbed)
+    particle_array.number_particles=N_post_absorption
+    for ip_a in 1:length(ip_absorbed)
+        ip = ip_absorbed[ip_a]
+        #> Shift to remove the absorbed particles
+        particle_array.particle[ip:N_pre_absorption-1]=particle_array.particle[ip+1:N_pre_absorption]
+        #> Shift down 1 index because of above shift
+        ip_absorbed[ip_a:end]+=fill(-1,length(ip_absorbed)-ip_a+1)
+    end
+    #> Zero out the removed particles
+    for ip in N_post_absorption+1:N_pre_absorption
+        particle_array.particle[ip]=ParticlesModule.Particle()
+    end
+end
+
 function ApplyRefluxParticleBoundary_Left!(
         particle_array::ParticlesModule.Particle_Array,
         grid_array::GridModule.Grid_Array,
