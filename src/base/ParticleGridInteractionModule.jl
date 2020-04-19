@@ -1,8 +1,9 @@
 module ParticleGridInteractionModule
 
-import FFTW
-import ParticlesModule
-import GridModule
+using FFTW
+using ParticlesModule
+using GridModule
+using ElasticArrays
 
 function ScatterFieldToParticle_1D_single(
         field_x::Array{Float64,1},
@@ -126,6 +127,57 @@ function ApplyPeriodicParticleBoundary!(
         particle_array.particle[ip].x = mod(particle_array.particle[ip].x-grid_array.x[1],grid_array.x[end]-grid_array.x[1])+grid_array.x[1]
         particle_array.particle[ip].y = mod(particle_array.particle[ip].y-grid_array.y[1],grid_array.y[end]-grid_array.y[1])+grid_array.y[1]
         particle_array.particle[ip].z = mod(particle_array.particle[ip].z-grid_array.z[1],grid_array.z[end]-grid_array.z[1])+grid_array.z[1]
+    end
+end
+
+function ApplyAbsorptionParticleBoundary_Right!(
+        particle_array::ParticlesModule.Particle_Array,
+        grid_array::GridModule.Grid_Array
+    )
+    ip_absorbed = ElasticArray{Int}(undef, 1, 0)
+    for ip in 1:particle_array.number_particles
+        if(particle_array.particle[ip].x>=maximum(grid_array.x))
+            append!(ip_absorbed,[ip])
+        end
+    end
+    N_pre_absorption = particle_array.number_particles
+    N_post_absorption = N_pre_absorption-length(ip_absorbed)
+    particle_array.number_particles=N_post_absorption
+    for ip_a in 1:length(ip_absorbed)
+        ip = ip_absorbed[ip_a]
+        #> Shift to remove the absorbed particles
+        particle_array.particle[ip:N_pre_absorption-1]=particle_array.particle[ip+1:N_pre_absorption]
+        #> Shift down 1 index because of above shift
+        ip_absorbed[ip_a:end]+=fill(-1,length(ip_absorbed)-ip_a+1)
+    end
+    #> Zero out the removed particles
+    for ip in N_post_absorption+1:N_pre_absorption
+        particle_array.particle[ip]=ParticlesModule.Particle()
+    end
+end
+
+function ApplyRefluxParticleBoundary_Left!(
+        particle_array::ParticlesModule.Particle_Array,
+        grid_array::GridModule.Grid_Array,
+        vx_thermal_speed::Float64,
+        vy_thermal_speed::Float64,
+        vz_thermal_speed::Float64
+    )
+    ip_reflux = ElasticArray{Int}(undef, 1, 0)
+    for ip in 1:particle_array.number_particles
+        if(particle_array.particle[ip].x<minimum(grid_array.x))
+            append!(ip_reflux,[ip])
+        end
+    end
+    N_reflux=length(ip_reflux)
+    for ip_a in 1:N_reflux
+        ip = ip_reflux[ip_a]
+        #> Re-thermalize the particles' velocities
+        particle_array.particle[ip].vx=vx_thermal_speed*randn()
+        particle_array.particle[ip].vy=vy_thermal_speed*randn()
+        particle_array.particle[ip].vz=vz_thermal_speed*randn()
+        #> Re-flect the particle back into the system
+        particle_array.particle[ip].x=(2.0*minimum(grid_array.x))-particle_array.particle[ip].x
     end
 end
 
