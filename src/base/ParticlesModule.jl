@@ -478,18 +478,19 @@ function InjectionParticles_fromTheLeft(
         grid,density;
         particles_per_cell=10,
         vx_thermal_speed=1.0,vy_thermal_speed=0.0,vz_thermal_speed=0.0,
+        buffer_fraction = 0.01,
         time_step=1.0
     )
     x_length = (vx_thermal_speed*3.0/time_step)
     dx = grid.x[2]-grid.x[1]
-    x_cells = Int(ceil(x_length/dx))
+    x_cells = Int(round(ceil(x_length/dx)))
     x_length = x_cells*dx
     
     #> The weight of each particle is determined by the
     #> number of physical particles divided by the 
     #> number of simulation particles
-    N_physical = Int(density*x_length)
-    N_marker = Int(particles_per_cell*x_cells)
+    N_physical = (density*x_length)
+    N_marker = Int(round(particles_per_cell*x_cells))
     f_over_g = float(N_physical)/float(N_marker)
     
     #> These are the POSSIBLE particles which may be injected
@@ -503,7 +504,7 @@ function InjectionParticles_fromTheLeft(
     ip_injection = ElasticArray{Int}(undef, 1, 0)
     for ip in 1:N_marker
         x_step=possible_particles[ip].vx*possible_particles[ip].dt
-        possible_particles[ip].x+=x_step-x_length
+        possible_particles[ip].x+=x_step-x_length+(dx*buffer_fraction)
         possible_particles[ip].f_over_g=f_over_g
         if(possible_particles[ip].x>= 0.0)
             append!(ip_injection,[ip])
@@ -513,7 +514,8 @@ function InjectionParticles_fromTheLeft(
     for ip in 1:length(ip_injection)
         injected_particles[ip]=possible_particles[ip_injection[ip]]
     end
-    return injected_particles
+    possible_particles=injected_particles
+    return possible_particles
 end
         
 function ParticleInjectionFromLeft_Init(
@@ -521,21 +523,25 @@ function ParticleInjectionFromLeft_Init(
         particles_per_cell=1,mass=1.0,charge=1.0,
         vx_thermal_speed=0.0,vy_thermal_speed=0.0,vz_thermal_speed=0.0,
         particle_shape_x=0.0,particle_shape_y=0.0,particle_shape_z=0.0,
+        buffer_fraction = 0.01,
         time_step=0.0
     )
+    
     particle=InjectionParticles_fromTheLeft(
         grid,density,
         particles_per_cell=particles_per_cell,
         vx_thermal_speed=vx_thermal_speed,
         vy_thermal_speed=vy_thermal_speed,
         vz_thermal_speed=vz_thermal_speed,
+        buffer_fraction = buffer_fraction,
         time_step=time_step
-    );      
+    );
     if(length(particle)==0)
-        ParticleRandomInit(
-            grid.x[2]-grid.x[1],
-            grid.y[2]-grid.y[1],
-            grid.z[2]-grid.z[1],
+        particle=Array{Particle,1}(undef,1)
+        particle[1]=ParticleRandomInit(
+            0.01*(grid.x[2]-grid.x[1]),
+            0.01*(grid.y[2]-grid.y[1]),
+            0.01*(grid.z[2]-grid.z[1]),
             vx_thermal_speed,vy_thermal_speed,vz_thermal_speed,
             time_step
         )
@@ -555,6 +561,7 @@ function ParticleInjectionFromLeft_Continue!(
         vy_thermal_speed=0.0,
         vz_thermal_speed=0.0,
         time_step=0.0,
+        buffer_fraction = 0.01,
         buffer_multiplier=10
     )
     injected_particles=InjectionParticles_fromTheLeft(
@@ -563,6 +570,7 @@ function ParticleInjectionFromLeft_Continue!(
         vx_thermal_speed=vx_thermal_speed,
         vy_thermal_speed=vy_thermal_speed,
         vz_thermal_speed=vz_thermal_speed,
+        buffer_fraction = buffer_fraction,
         time_step=time_step
     );      
     N_injected = length(injected_particles)
@@ -570,7 +578,7 @@ function ParticleInjectionFromLeft_Continue!(
     N_current_array = length(particle_array_struct.particle)
     if((N_injected+N_current)>N_current_array)
         IncreaseParticleArraySize!(
-            particle_array_struct,Int(N_injected*buffer_multiplier)
+            particle_array_struct,Int(round(N_injected*buffer_multiplier))
         )
     end
     for ip in N_current+1:N_current+N_injected
