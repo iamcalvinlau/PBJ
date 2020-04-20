@@ -1,8 +1,25 @@
 module FieldModule
 
-import FFTW
-import GridModule
+using FFTW
+using GridModule
 using LinearAlgebra
+
+#> Field struct
+mutable struct Field_Array
+    phi::Array{Float64,1}
+    ion_density::Array{Float64,1}
+    electron_density::Array{Float64,1}
+end
+
+# outer constructor that zeroes fields
+function Fields_Init(grid) 
+    fields = Field_Array(
+        fill(0.0,length(grid.x)),
+        fill(0.0,length(grid.x)),
+        fill(0.0,length(grid.x))
+    )
+    return fields
+end
 
 function SolvePoissonEquation_FFT_1D(
         RHS_array::Array{Float64,1},
