@@ -481,7 +481,7 @@ function InjectionParticles_fromTheLeft(
         buffer_fraction = 0.01,
         time_step=1.0
     )
-    x_length = (vx_thermal_speed*3.0/time_step)
+    x_length = (vx_thermal_speed*3.0*time_step)
     dx = grid.x[2]-grid.x[1]
     x_cells = Int(round(ceil(x_length/dx)))
     x_length = x_cells*dx
@@ -518,6 +518,45 @@ function InjectionParticles_fromTheLeft(
     return possible_particles
 end
         
+# # #> Use a half-maxwellian
+# function InjectionParticles_fromTheLeft(
+#         grid,density;
+#         particles_per_cell=10,
+#         vx_thermal_speed=1.0,vy_thermal_speed=0.0,vz_thermal_speed=0.0,
+#         buffer_fraction = 0.01,
+#         time_step=1.0
+#     )
+#     x_length = (vx_thermal_speed*time_step)
+#     dx = grid.x[2]-grid.x[1]
+#     #x_cells = (x_length/dx)
+    
+#     #> The weight of each particle is determined by the
+#     #> number of physical particles divided by the 
+#     #> number of simulation particles
+#     #> NOTE: the factor of 1/2 is because this is initializing only
+#     #> the positive half of the velocities
+#     N_physical = (density*x_length*0.5)
+#     #N_physical = (density*x_length)
+#     N_marker = Int(round(particles_per_cell*dx))
+#     f_over_g = float(N_physical)/float(N_marker)
+    
+#     #> These are the POSSIBLE particles which may be injected
+#     #> into the simulation domain.
+#     possible_particles=ParticleRandomInit(
+#         N_marker,
+#         x_length,maximum(grid.y),maximum(grid.z),
+#         vx_thermal_speed,vy_thermal_speed,vz_thermal_speed,
+#         time_step
+#     )
+#     for ip in 1:N_marker
+#         possible_particles[ip].vx=abs(possible_particles[ip].vx)
+#         x_step=(possible_particles[ip].vx*possible_particles[ip].dt)
+#         possible_particles[ip].x=x_step*rand()
+#         possible_particles[ip].f_over_g=f_over_g
+#     end
+#     return possible_particles
+# end
+        
 function ParticleInjectionFromLeft_Init(
         grid,density;
         particles_per_cell=1,mass=1.0,charge=1.0,
@@ -539,9 +578,9 @@ function ParticleInjectionFromLeft_Init(
     if(length(particle)==0)
         particle=Array{Particle,1}(undef,1)
         particle[1]=ParticleRandomInit(
-            0.01*(grid.x[2]-grid.x[1]),
-            0.01*(grid.y[2]-grid.y[1]),
-            0.01*(grid.z[2]-grid.z[1]),
+            buffer_fraction*(grid.x[2]-grid.x[1]),
+            buffer_fraction*(grid.y[2]-grid.y[1]),
+            buffer_fraction*(grid.z[2]-grid.z[1]),
             vx_thermal_speed,vy_thermal_speed,vz_thermal_speed,
             time_step
         )
