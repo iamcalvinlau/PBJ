@@ -101,7 +101,7 @@ function ScatterParticleToGrid_x_vx(
     return output_quantity
 end
 
-function ApplyFiniteParticleShape_x(
+function ApplyFiniteParticleShape_x_periodic(
         field_x::Array{Float64,1},
         particle_array::ParticlesModule.Particle_Array,
         grid_array::GridModule.Grid_Array
@@ -117,6 +117,55 @@ function ApplyFiniteParticleShape_x(
     push!(field_out,field_out[1])
 
     return field_out
+end
+
+function ApplyFiniteParticleShape_x(
+        field_x::Array{Float64,1},
+        particle_array::ParticlesModule.Particle_Array,
+        grid_array::GridModule.Grid_Array
+    )
+    field_fft=FFTW.rfft(field_x[1:end])
+    
+    k_fft=range(0,stop=length(field_fft),length=length(field_fft))
+    k_fft*=2.0*pi/(grid_array.x[end]-grid_array.x[1])
+    
+    field_fft_out = field_fft.*exp.(-(k_fft*particle_array.particle_shape_x).^2)
+    
+    field_out=FFTW.irfft(field_fft_out,length(field_x[1:end]))
+    return field_out
+end
+
+function ApplyFiniteParticleShape_x(
+        field_x::Array{Float64,1},
+        particle_array::ParticlesModule.Particle_Array,
+        grid_array::GridModule.Grid_Array,
+        left_boundary_value::Float64,
+        right_boundary_value::Float64
+    )
+    
+    n_x = length(field_x)
+    n_zeros = n_x
+    n_ones = n_x
+    field_tmp = fill(0.0,n_x+n_zeros+n_ones)
+    for i in 1:n_ones
+        field_tmp[i]=left_boundary_value
+    end
+    for i in n_ones+1:n_ones+n_x
+        field_tmp[i]=field_x[i-(n_ones)]
+    end
+    for i in n_ones+n_x+1:n_ones+n_x+n_zeros
+        field_tmp[i]=right_boundary_value
+    end
+    
+    field_fft=FFTW.rfft(field_tmp)
+
+    k_fft=range(0,stop=length(field_fft),length=length(field_fft))
+    k_fft*=2.0*pi/((grid_array.x[end]-grid_array.x[1])*3.0)
+    
+    field_fft_out = field_fft.*exp.(-(k_fft*particle_array.particle_shape_x).^2)
+    
+    field_out=FFTW.irfft(field_fft_out,length(field_tmp))
+    return field_out[n_ones+1:n_ones+n_x]
 end
 
 function ApplyPeriodicParticleBoundary!(
@@ -164,7 +213,7 @@ function ApplyAbsorptionParticleBoundary_LeftRight!(
     for ip in 1:particle_array.number_particles
         if(particle_array.particle[ip].x>=maximum(grid_array.x))
             append!(ip_absorbed,[ip])
-        elseif(particle_array.particle[ip].x<minimum(grid_array.x))
+        elseif(particle_array.particle[ip].x<=minimum(grid_array.x))
             append!(ip_absorbed,[ip])
         end
     end
@@ -193,7 +242,7 @@ function ApplyRefluxParticleBoundary_Left!(
     )
     ip_reflux = ElasticArray{Int}(undef, 1, 0)
     for ip in 1:particle_array.number_particles
-        if(particle_array.particle[ip].x<minimum(grid_array.x))
+        if(particle_array.particle[ip].x<=minimum(grid_array.x))
             append!(ip_reflux,[ip])
         end
     end
