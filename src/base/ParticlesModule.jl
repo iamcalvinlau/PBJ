@@ -474,6 +474,51 @@ function GetParticleKineticEnergy_total(particle_array::Particle_Array)
     return output_quantity
 end
     
+# function InjectionParticles_fromTheLeft(
+#         grid,density;
+#         particles_per_cell=10,
+#         vx_thermal_speed=1.0,vy_thermal_speed=0.0,vz_thermal_speed=0.0,
+#         buffer_fraction = 0.01,
+#         time_step=1.0
+#     )
+#     x_length = (vx_thermal_speed*3.0*time_step)
+#     dx = grid.x[2]-grid.x[1]
+#     x_cells = Int(round(ceil(x_length/dx)))
+#     x_length = x_cells*dx
+    
+#     #> The weight of each particle is determined by the
+#     #> number of physical particles divided by the 
+#     #> number of simulation particles
+#     N_physical = (density*x_length)
+#     N_marker = Int(round(particles_per_cell*x_cells))
+#     f_over_g = float(N_physical)/float(N_marker)
+    
+#     #> These are the POSSIBLE particles which may be injected
+#     #> into the simulation domain.
+#     possible_particles=ParticleRandomInit(
+#         N_marker,
+#         x_length,maximum(grid.y),maximum(grid.z),
+#         vx_thermal_speed,vy_thermal_speed,vz_thermal_speed,
+#         time_step
+#     )
+#     ip_injection = ElasticArray{Int}(undef, 1, 0)
+#     for ip in 1:N_marker
+#         x_step=possible_particles[ip].vx*possible_particles[ip].dt
+#         possible_particles[ip].x+=x_step-x_length+(dx*buffer_fraction)
+#         possible_particles[ip].f_over_g=f_over_g
+#         if(possible_particles[ip].x>= 0.0)
+#             append!(ip_injection,[ip])
+#         end
+#     end
+#     injected_particles = Array{Particle,1}(undef,length(ip_injection))
+#     for ip in 1:length(ip_injection)
+#         injected_particles[ip]=possible_particles[ip_injection[ip]]
+#     end
+#     possible_particles=injected_particles
+#     return possible_particles
+# end
+        
+#> Use a half-maxwellian
 function InjectionParticles_fromTheLeft(
         grid,density;
         particles_per_cell=10,
@@ -481,14 +526,17 @@ function InjectionParticles_fromTheLeft(
         buffer_fraction = 0.01,
         time_step=1.0
     )
-    x_length = (vx_thermal_speed*3.0*time_step)
+    x_length = (vx_thermal_speed*time_step)
     dx = grid.x[2]-grid.x[1]
-    x_cells = Int(round(ceil(x_length/dx)))
-    x_length = x_cells*dx
+    x_cells = max(1,x_length/dx)
+    #x_cells = (x_length/dx)
     
     #> The weight of each particle is determined by the
     #> number of physical particles divided by the 
     #> number of simulation particles
+    #> NOTE: the factor of 1/2 is because this is initializing only
+    #> the positive half of the velocities
+    #N_physical = (density*x_length*0.5)
     N_physical = (density*x_length)
     N_marker = Int(round(particles_per_cell*x_cells))
     f_over_g = float(N_physical)/float(N_marker)
@@ -501,61 +549,14 @@ function InjectionParticles_fromTheLeft(
         vx_thermal_speed,vy_thermal_speed,vz_thermal_speed,
         time_step
     )
-    ip_injection = ElasticArray{Int}(undef, 1, 0)
     for ip in 1:N_marker
-        x_step=possible_particles[ip].vx*possible_particles[ip].dt
-        possible_particles[ip].x+=x_step-x_length+(dx*buffer_fraction)
+        #possible_particles[ip].vx=abs(possible_particles[ip].vx)
+        x_step=(possible_particles[ip].vx*possible_particles[ip].dt)
+        possible_particles[ip].x=x_length*rand()
         possible_particles[ip].f_over_g=f_over_g
-        if(possible_particles[ip].x>= 0.0)
-            append!(ip_injection,[ip])
-        end
     end
-    injected_particles = Array{Particle,1}(undef,length(ip_injection))
-    for ip in 1:length(ip_injection)
-        injected_particles[ip]=possible_particles[ip_injection[ip]]
-    end
-    possible_particles=injected_particles
     return possible_particles
 end
-        
-# # #> Use a half-maxwellian
-# function InjectionParticles_fromTheLeft(
-#         grid,density;
-#         particles_per_cell=10,
-#         vx_thermal_speed=1.0,vy_thermal_speed=0.0,vz_thermal_speed=0.0,
-#         buffer_fraction = 0.01,
-#         time_step=1.0
-#     )
-#     x_length = (vx_thermal_speed*time_step)
-#     dx = grid.x[2]-grid.x[1]
-#     #x_cells = (x_length/dx)
-    
-#     #> The weight of each particle is determined by the
-#     #> number of physical particles divided by the 
-#     #> number of simulation particles
-#     #> NOTE: the factor of 1/2 is because this is initializing only
-#     #> the positive half of the velocities
-#     N_physical = (density*x_length*0.5)
-#     #N_physical = (density*x_length)
-#     N_marker = Int(round(particles_per_cell*dx))
-#     f_over_g = float(N_physical)/float(N_marker)
-    
-#     #> These are the POSSIBLE particles which may be injected
-#     #> into the simulation domain.
-#     possible_particles=ParticleRandomInit(
-#         N_marker,
-#         x_length,maximum(grid.y),maximum(grid.z),
-#         vx_thermal_speed,vy_thermal_speed,vz_thermal_speed,
-#         time_step
-#     )
-#     for ip in 1:N_marker
-#         possible_particles[ip].vx=abs(possible_particles[ip].vx)
-#         x_step=(possible_particles[ip].vx*possible_particles[ip].dt)
-#         possible_particles[ip].x=x_step*rand()
-#         possible_particles[ip].f_over_g=f_over_g
-#     end
-#     return possible_particles
-# end
         
 function ParticleInjectionFromLeft_Init(
         grid,density;
