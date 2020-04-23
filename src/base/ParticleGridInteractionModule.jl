@@ -231,6 +231,41 @@ function ApplyFiniteParticleShape_x_121(
     return field_out
 end
 
+function ApplyFiniteParticleShape_x_121_periodic(
+        n_smooth::Int,
+        field_in::Array{Float64,1},
+        particle_array::ParticlesModule.Particle_Array,
+        grid_array::GridModule.Grid_Array
+    )
+    #> Assumes a duplicate point
+    n_x = length(field_in)
+    field_x = copy(field_in)
+    field_tmp = fill(0.0,n_x)
+    for i_smooth in 1:n_smooth
+        field_tmp = fill(0.0,n_x)
+        for i in 2:n_x-1
+            field_tmp[i]=(
+                (field_x[i-1]*0.25)
+                +(field_x[i]*0.5)
+                +(field_x[i+1]*0.25)
+            )
+        end
+        field_tmp[1]=(
+            (field_x[end-1]*0.25)
+            +(field_x[1]*0.5)
+            +(field_x[2]*0.25)
+        )
+        field_tmp[end]=(
+            (field_x[end-1]*0.25)
+            +(field_x[end]*0.5)
+            +(field_x[2]*0.25)
+        )
+        field_x=copy(field_tmp)
+    end
+    field_out=field_tmp
+    return field_out
+end
+
 function ApplyPeriodicParticleBoundary!(
         particle_array::ParticlesModule.Particle_Array,
         grid_array::GridModule.Grid_Array
