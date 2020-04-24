@@ -44,6 +44,21 @@ function CalculateElectricField_FFT_1D(
     return field_out
 end
 
+function CalculateElectricField_FD_1D_periodic(
+        phi::Array{Float64,1},
+        grid_array::GridModule.Grid_Array
+    )
+    field_out = fill(0.0,length(phi))
+    dx = grid_array.x[2]-grid_array.x[1]
+    
+    for i in 2:length(phi)-1
+        field_out[i] = -(phi[i+1]-phi[i-1])/(2.0*dx)
+    end
+    field_out[1]=-(phi[2]-phi[end-1])/(2.0*dx)
+    field_out[end]=-(phi[2]-phi[end-1])/(2.0*dx)
+    return field_out
+end
+
 function CalculateElectricField_FD_1D(
         phi::Array{Float64,1},
         grid_array::GridModule.Grid_Array
