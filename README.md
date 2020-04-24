@@ -15,4 +15,8 @@ Electrons and ions are injected and absorbed. To accomodate for this, the partic
 
 ### Two Stream Instability with Periodic Boundaries
 
+This shows the two stream instability of electrons streaming with drift-velocity into stationary ions (with 100x electron mass). The boundary is periodic.
+![Two-stream instability with mass-ratio=100](https://github.com/iamcalvinlau/PBJ/blob/master/figures/two_stream_mass-ratio%3D100.gif)
 
+The fastest growing mode is when the period of the drift motion is equal to the plasma frequency. In this case, it is dominated by the m=3 (wavelength = 1/3 simulation length) component. The theory is simple for this case and is compared to the simulation results.
+![Comparison of theory and simulation](https://github.com/iamcalvinlau/PBJ/blob/master/figures/two-stream_instability.png)
