@@ -442,6 +442,114 @@ function UpdateParticleVelocity!(particle_array::Particle_Array)
     end
 end
 
+function return_one(x)
+    return 1.0
+end
+
+function return_one(x,y,z)
+    return 1.0
+end
+
+function UpdateParticleVelocity_Boris_single_speedlimited!(
+        particle::Particle,particle_array::Particle_Array;
+        beta=return_one,N_corrector=1
+    )
+    ####
+    #> Predictor-Step
+    ####
+    #>> Make one copy first
+    particle_tmp = deepcopy(particle)
+    #>> Use the old and current velocities to estimate the midpoint velocity.
+    #>> Here, vx = vx(n-1/2); vx_old = vx(n-3/2)
+    v_x_est = (1.5*particle_tmp.vx)-(0.5*particle_tmp.vx_old)
+    v_y_est = (1.5*particle_tmp.vy)-(0.5*particle_tmp.vy_old)
+    v_z_est = (1.5*particle_tmp.vz)-(0.5*particle_tmp.vz_old)
+    particle_tmp.Ex *= beta(
+        v_x_est,v_y_est,v_z_est
+    )
+    particle_tmp.Ey *= beta(
+        v_x_est,v_y_est,v_z_est
+    )
+    particle_tmp.Ez *= beta(
+        v_x_est,v_y_est,v_z_est
+    )
+    #>> Push with Boris, this only modifies the velocities (old and current)
+    UpdateParticleVelocity_Boris_single!(particle_tmp,particle_array)
+    
+    #####
+    #> Corrector
+    #####
+    for i_corrector in 1:N_corrector
+        #>> Use the current and predicted velocities to estimate the midpoint velocity.
+        #>> Here, vx = vx(n+1/2); vx_old = vx(n-1/2)
+        v_x_est = (0.5*particle_tmp.vx)+(0.5*particle_tmp.vx_old)
+        v_y_est = (0.5*particle_tmp.vy)+(0.5*particle_tmp.vy_old)
+        v_z_est = (0.5*particle_tmp.vz)+(0.5*particle_tmp.vz_old)
+        particle_tmp.Ex = particle.Ex*beta(
+            v_x_est,v_y_est,v_z_est
+        )
+        particle_tmp.Ey = particle.Ey*beta(
+            v_x_est,v_y_est,v_z_est
+        )
+        particle_tmp.Ez = particle.Ez*beta(
+            v_x_est,v_y_est,v_z_est
+        )
+        #> Reset the "current" velocities with the "old" velocities
+        #>> so that, vx = vx(n-1/2)
+        particle_tmp.vx = particle.vx
+        particle_tmp.vy = particle.vy
+        particle_tmp.vz = particle.vz  
+        #>> Push with Boris, this only modifies the velocities (old and current)
+        UpdateParticleVelocity_Boris_single!(particle_tmp,particle_array)
+    end
+    particle.vx=particle_tmp.vx
+    particle.vy=particle_tmp.vy
+    particle.vz=particle_tmp.vz
+    particle.vx_old=particle_tmp.vx_old
+    particle.vy_old=particle_tmp.vy_old
+    particle.vz_old=particle_tmp.vz_old
+end
+
+function UpdateParticleVelocity_speedlimited!(
+        particle_array::Particle_Array;
+        beta=return_one,N_corrector=1
+    )    
+    for ip in 1:particle_array.number_particles
+        UpdateParticleVelocity_Boris_single_speedlimited!(
+            particle_array.particle[ip],particle_array,
+            beta=beta,
+            N_corrector=N_corrector
+        )
+    end
+end
+
+function UpdateParticlePosition_single_speedlimited!(
+        particle::Particle;
+        beta=return_one
+    )
+    particle.x += particle.vx*particle.dt*beta(
+        particle.vx,particle.vy,particle.vz
+    )
+    particle.y += particle.vy*particle.dt*beta(
+        particle.vx,particle.vy,particle.vz
+    )
+    particle.z += particle.vz*particle.dt*beta(
+        particle.vx,particle.vy,particle.vz
+    )
+end
+
+function UpdateParticlePosition_speedlimited!(
+        particle_array::Particle_Array;
+        beta=return_one
+    )
+    for ip in 1:particle_array.number_particles
+        UpdateParticlePosition_single_speedlimited!(
+            particle_array.particle[ip],
+            beta=beta
+        )
+    end
+end
+
 function UpdateParticleKineticEnergy_single!(particle::Particle,particle_array::Particle_Array)
     particle.energy = 0.5*particle_array.mass*(
                         (particle.vx*particle.vx_old)
@@ -524,12 +632,16 @@ function InjectionParticles_fromTheLeft(
         particles_per_cell=10,
         vx_thermal_speed=1.0,vy_thermal_speed=0.0,vz_thermal_speed=0.0,
         buffer_fraction = 0.01,
-        time_step=1.0
+        time_step=1.0,
+        beta=return_one
     )
-    x_length = (vx_thermal_speed*time_step)
+    x_length = (vx_thermal_speed*time_step*beta(
+        vx_thermal_speed,
+        vy_thermal_speed,
+        vz_thermal_speed
+    ))
     dx = grid.x[2]-grid.x[1]
     x_cells = max(1,x_length/dx)
-    #x_cells = (x_length/dx)
     
     #> The weight of each particle is determined by the
     #> number of physical particles divided by the 
@@ -539,7 +651,15 @@ function InjectionParticles_fromTheLeft(
     #N_physical = (density*x_length*0.5)
     N_physical = (density*x_length)
     N_marker = Int(round(particles_per_cell*x_cells))
-    f_over_g = float(N_physical)/float(N_marker)
+    #> For speed limited pic, the density is actually
+    #> rho = sum(W_p*beta*delta(x-x_p))
+    #> which means that the initial weight has be correctly
+    #> accounted for here
+    f_over_g = (float(N_physical)/float(N_marker))/beta(
+        vx_thermal_speed,
+        vy_thermal_speed,
+        vz_thermal_speed
+    )
     
     #> These are the POSSIBLE particles which may be injected
     #> into the simulation domain.
@@ -550,8 +670,6 @@ function InjectionParticles_fromTheLeft(
         time_step
     )
     for ip in 1:N_marker
-        #possible_particles[ip].vx=abs(possible_particles[ip].vx)
-        x_step=(possible_particles[ip].vx*possible_particles[ip].dt)
         possible_particles[ip].x=x_length*rand()
         possible_particles[ip].f_over_g=f_over_g
     end
@@ -564,7 +682,8 @@ function ParticleInjectionFromLeft_Init(
         vx_thermal_speed=0.0,vy_thermal_speed=0.0,vz_thermal_speed=0.0,
         particle_shape_x=0.0,particle_shape_y=0.0,particle_shape_z=0.0,
         buffer_fraction = 0.01,
-        time_step=0.0
+        time_step=0.0,
+        beta=return_one
     )
     
     particle=InjectionParticles_fromTheLeft(
@@ -574,7 +693,8 @@ function ParticleInjectionFromLeft_Init(
         vy_thermal_speed=vy_thermal_speed,
         vz_thermal_speed=vz_thermal_speed,
         buffer_fraction = buffer_fraction,
-        time_step=time_step
+        time_step=time_step,
+        beta=beta
     );
     if(length(particle)==0)
         particle=Array{Particle,1}(undef,1)
@@ -602,7 +722,8 @@ function ParticleInjectionFromLeft_Continue!(
         vz_thermal_speed=0.0,
         time_step=0.0,
         buffer_fraction = 0.01,
-        buffer_multiplier=10
+        buffer_multiplier=10,
+        beta=return_one
     )
     injected_particles=InjectionParticles_fromTheLeft(
         grid,density,
@@ -611,7 +732,8 @@ function ParticleInjectionFromLeft_Continue!(
         vy_thermal_speed=vy_thermal_speed,
         vz_thermal_speed=vz_thermal_speed,
         buffer_fraction = buffer_fraction,
-        time_step=time_step
+        time_step=time_step,
+        beta=beta
     );      
     N_injected = length(injected_particles)
     N_current = particle_array_struct.number_particles

@@ -84,6 +84,35 @@ function ScatterParticleToGrid_x(
     return output_quantity
 end
 
+function return_one(x,y,z)
+    return 1.0
+end
+
+function return_one(x)
+    return 1.0
+end
+
+function ScatterParticleToGrid_x_speedlimited(
+        particle_array::ParticlesModule.Particle_Array,
+        grid_array::GridModule.Grid_Array;
+        beta=return_one
+    )
+    output_quantity=zero(grid_array.x)
+    for ip in 1:particle_array.number_particles
+        output_quantity[:] += ScatterParticleToGrid_1D_single(
+            particle_array.particle[ip].x,grid_array.x
+        )*(
+            particle_array.particle[ip].f_over_g
+            *beta(
+                particle_array.particle[ip].vx,
+                particle_array.particle[ip].vy,
+                particle_array.particle[ip].vz
+            )
+        )
+    end
+    return output_quantity
+end
+
 function ScatterParticleToGrid_x_vx(
         particle_array::ParticlesModule.Particle_Array,
         grid_array::GridModule.Grid_Array,
