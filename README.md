@@ -1,5 +1,13 @@
 # PBJ
-PBJ stands for Particles By Julia. Hopefully, this grows into a Julia-based particle simulation suite of functions and subroutines to be used for testing various particle-in-cell methods and techniques. Some benchmarks are shown.
+PBJ stands for Particles By Julia. Hopefully, this grows into a Julia-based particle simulation suite of functions and subroutines to be used for testing various particle-in-cell methods and techniques. 
+
+I have a personal list of interesting algorithms to look at
+1. Speed-limited PIC (SLPIC)
+2. Particle-in-Fourier (PIF) 
+3. Phase-space remapping
+4. Asynchronous PIC
+
+So far, SLPIC has been explored. Some PBJ benchmark cases are shown.
 
 ### 1. Sheath Formation with Fixed Potential Boundaries
 At the moment, it has been used for 1d3v benchmark simulations. The flattening from 3d to 1d is done by ignoring the other dimensions and only calling a 1d gather/scatter function and a 1d Poisson solver. 
