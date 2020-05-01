@@ -25,7 +25,7 @@ Electrons and ions are injected and absorbed. To accomodate for this, the partic
 This shows the same formation of the sheath, almost the same as above but uses argon ions and electrons like the SLPIC paper. However, the time-step is 320x larger, and the simulation incorporates speed-limiting effects (see SLPIC paper).
 ![SL sheath formation using argon and electrons.](https://github.com/iamcalvinlau/PBJ/blob/master/figures/slpic_sheath_larger-ppc.gif)
 
-### Two Stream Instability with Periodic Boundaries
+### 2. Two Stream Instability with Periodic Boundaries
 
 This shows the two stream instability of electrons streaming with drift-velocity into stationary ions (with 100x electron mass). The boundary is periodic.
 ![Two-stream instability with mass-ratio=100](https://github.com/iamcalvinlau/PBJ/blob/master/figures/two_stream_mass-ratio%3D100.gif)
